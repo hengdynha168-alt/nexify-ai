@@ -16,16 +16,21 @@ export async function POST(req: Request) {
       });
     }
 
-    console.log("URL:", url);
-
-    let transcript;
+    let transcriptText = "";
 
     try {
-      transcript =
+      const transcript =
         await YoutubeTranscript.fetchTranscript(url);
-    } catch (err) {
-      console.error("Transcript Error:", err);
 
+      transcriptText = transcript
+        .map((item) => item.text)
+        .join(" ");
+
+      console.log(
+        "Transcript Length:",
+        transcriptText.length
+      );
+    } catch (error) {
       return Response.json({
         success: false,
         error:
@@ -33,35 +38,36 @@ export async function POST(req: Request) {
       });
     }
 
-    const transcriptText = transcript
-      .map((item) => item.text)
-      .join(" ");
-
-    console.log(
-      "Transcript Length:",
-      transcriptText.length
-    );
-
     const model = genAI.getGenerativeModel({
       model: "gemini-2.5-flash",
     });
 
     const prompt = `
-Analyze this YouTube transcript.
+You are an expert viral content editor.
 
-Find the 5 most viral clips for:
-- TikTok
-- Instagram Reels
-- YouTube Shorts
+Analyze this transcript and find the 10 most viral clips.
+
+For each clip return:
+
+- title
+- start
+- end
+- score (1-100)
+- reason
+- emotion
+- hook
 
 Return ONLY valid JSON.
 
 [
   {
-    "title": "Clip title",
-    "start": "00:00",
-    "end": "00:30",
-    "score": 95
+    "title": "How Fire Changed Humanity",
+    "start": "00:47",
+    "end": "02:07",
+    "score": 96,
+    "reason": "Strong curiosity gap and storytelling",
+    "emotion": "Surprise",
+    "hook": "What if humans never discovered fire?"
   }
 ]
 
@@ -74,20 +80,17 @@ ${transcriptText}
 
     const text = result.response.text();
 
-    console.log("Gemini Response:", text);
-
     return Response.json({
       success: true,
       result: text,
     });
   } catch (error: any) {
-    console.error("FULL ERROR:", error);
+    console.error(error);
 
     return Response.json({
       success: false,
       error:
-        error?.message ||
-        "Something went wrong",
+        error?.message || "Something went wrong",
     });
   }
 }

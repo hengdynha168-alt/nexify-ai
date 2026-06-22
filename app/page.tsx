@@ -130,6 +130,17 @@ export default function Home() {
 
               <p className="text-2xl font-semibold mb-3">
                 {clip.title}
+                <p className="text-gray-400 mt-2">
+  {clip.reason}
+</p>
+
+<p className="text-yellow-400 mt-2">
+  Emotion: {clip.emotion}
+</p>
+
+<p className="text-cyan-400 mt-2">
+  Hook: {clip.hook}
+</p>
               </p>
 
               <p className="text-green-400 font-medium mb-4">
