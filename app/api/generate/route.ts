@@ -1,96 +1,84 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import { YoutubeTranscript } from "youtube-transcript";
-
-const genAI = new GoogleGenerativeAI(
-  process.env.GEMINI_API_KEY!
-);
+import { analyzeTranscript } from "@/lib/gemini";
+import { downloadVideo } from "@/lib/downloadVideo";
+import { transcribe } from "@/lib/transcribe";
+import { cutVideo } from "@/lib/cutVideo";
+import fs from "fs";
 
 export async function POST(req: Request) {
-  try {
-    const { url } = await req.json();
+try {
+const { url } = await req.json();
 
-    if (!url) {
-      return Response.json({
-        success: false,
-        error: "Please enter a YouTube URL",
-      });
-    }
 
-    let transcriptText = "";
+if (!url) {
+  return Response.json({
+    success: false,
+    error: "Please enter a YouTube URL",
+  });
+}
 
-    try {
-      const transcript =
-        await YoutubeTranscript.fetchTranscript(url);
+console.log("1. Downloading video...");
+const videoFile = await downloadVideo(url);
 
-      transcriptText = transcript
-        .map((item) => item.text)
-        .join(" ");
+console.log("2. Transcribing...");
+const transcript = await transcribe(videoFile);
 
-      console.log(
-        "Transcript Length:",
-        transcriptText.length
-      );
-    } catch (error) {
-      return Response.json({
-        success: false,
-        error:
-          "This video does not have a public transcript. Try another YouTube video.",
-      });
-    }
+console.log("3. Gemini analyzing...");
+const result = await analyzeTranscript(transcript);
 
-    const model = genAI.getGenerativeModel({
-      model: "gemini-2.5-flash",
-    });
+console.log("Gemini Result:");
+console.log(result);
 
-    const prompt = `
-You are an expert viral content editor.
+const clips = JSON.parse(
+  result
+    .replace(/```json/g, "")
+    .replace(/```/g, "")
+    .trim()
+);
 
-Analyze this transcript and find the 10 most viral clips.
+console.log("Parsed Clips:");
+console.log(clips);
 
-For each clip return:
+if (!fs.existsSync("public/clips")) {
+  fs.mkdirSync("public/clips", { recursive: true });
+}
 
-- title
-- start
-- end
-- score (1-100)
-- reason
-- emotion
-- hook
+console.log("4. Cutting clips...");
 
-Return ONLY valid JSON.
+for (let i = 0; i < clips.length; i++) {
+  console.log(`Cutting clip ${i + 1}`);
 
-[
-  {
-    "title": "How Fire Changed Humanity",
-    "start": "00:47",
-    "end": "02:07",
-    "score": 96,
-    "reason": "Strong curiosity gap and storytelling",
-    "emotion": "Surprise",
-    "hook": "What if humans never discovered fire?"
-  }
-]
+  await cutVideo(
+    videoFile,
+    clips[i].start,
+    clips[i].end,
+    `public/clips/clip-${i + 1}.mp4`
+  );
 
-Transcript:
-${transcriptText}
-`;
+  clips[i].video =
+    `/clips/clip-${i + 1}.mp4`;
 
-    const result =
-      await model.generateContent(prompt);
+  console.log(`Created clip ${i + 1}`);
+}
 
-    const text = result.response.text();
+console.log("Done!");
 
-    return Response.json({
-      success: true,
-      result: text,
-    });
-  } catch (error: any) {
-    console.error(error);
+return Response.json({
+  success: true,
+  result: clips,
+});
 
-    return Response.json({
-      success: false,
-      error:
-        error?.message || "Something went wrong",
-    });
-  }
+
+} catch (error: any) {
+console.error(error);
+
+
+return Response.json({
+  success: false,
+  error:
+    error?.message ||
+    "Something went wrong",
+});
+
+
+}
 }
