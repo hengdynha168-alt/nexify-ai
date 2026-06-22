@@ -31,6 +31,8 @@ export default function Home() {
 
       const data = await res.json();
 
+      console.log("API Response:", data);
+
       if (data.error) {
         alert(data.error);
         return;
@@ -49,9 +51,9 @@ export default function Home() {
         "nexify-history",
         JSON.stringify(parsed)
       );
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("Failed to generate clips");
+      alert(err?.message || "Failed to generate clips");
     } finally {
       setLoading(false);
     }
@@ -60,7 +62,6 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-[#0B0F19] text-white px-6 py-12">
       <div className="max-w-5xl mx-auto">
-
         <h1 className="text-7xl font-extrabold text-center mb-4 bg-gradient-to-r from-green-400 via-emerald-500 to-teal-400 bg-clip-text text-transparent">
           Nexify AI
         </h1>
@@ -115,22 +116,16 @@ export default function Home() {
           {clips.map((clip, index) => (
             <div
               key={index}
-              className="bg-white/5 border border-white/10 backdrop-blur-xl rounded-3xl p-6 hover:border-green-500 hover:scale-[1.01] transition-all"
+              className="bg-white/5 border border-white/10 backdrop-blur-xl rounded-3xl p-6 hover:border-green-500 transition-all"
             >
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold">
                   🔥 Clip #{index + 1}
                 </h2>
 
-                <div className="flex gap-2">
-                  <span className="bg-green-500/20 text-green-400 px-3 py-1 rounded-full text-sm">
-                    Viral
-                  </span>
-
-                  <span className="bg-white/10 px-3 py-1 rounded-full text-sm">
-                    {clip.score}/100
-                  </span>
-                </div>
+                <span className="bg-white/10 px-3 py-1 rounded-full text-sm">
+                  {clip.score}/100
+                </span>
               </div>
 
               <p className="text-2xl font-semibold mb-3">
@@ -159,7 +154,6 @@ Score: ${clip.score}/100`
             </div>
           ))}
         </div>
-
       </div>
     </main>
   );

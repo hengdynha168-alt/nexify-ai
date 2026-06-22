@@ -9,13 +9,38 @@ export async function POST(req: Request) {
   try {
     const { url } = await req.json();
 
-    const transcript = await YoutubeTranscript.fetchTranscript(
-      url
-    );
+    if (!url) {
+      return Response.json({
+        success: false,
+        error: "Please enter a YouTube URL",
+      });
+    }
+
+    console.log("URL:", url);
+
+    let transcript;
+
+    try {
+      transcript =
+        await YoutubeTranscript.fetchTranscript(url);
+    } catch (err) {
+      console.error("Transcript Error:", err);
+
+      return Response.json({
+        success: false,
+        error:
+          "This video does not have a public transcript. Try another YouTube video.",
+      });
+    }
 
     const transcriptText = transcript
       .map((item) => item.text)
       .join(" ");
+
+    console.log(
+      "Transcript Length:",
+      transcriptText.length
+    );
 
     const model = genAI.getGenerativeModel({
       model: "gemini-2.5-flash",
@@ -24,47 +49,45 @@ export async function POST(req: Request) {
     const prompt = `
 Analyze this YouTube transcript.
 
-Find the 5 most viral clips for TikTok, Reels, Shorts.
-
-For each clip provide:
-
-- title
-- start
-- end
-- score (0-100)
+Find the 5 most viral clips for:
+- TikTok
+- Instagram Reels
+- YouTube Shorts
 
 Return ONLY valid JSON.
 
-Example:
-
 [
   {
-    "title": "Skills Make You Rich",
-    "start": "00:47",
-    "end": "01:40",
-    "score": 96
+    "title": "Clip title",
+    "start": "00:00",
+    "end": "00:30",
+    "score": 95
   }
 ]
 
 Transcript:
-
 ${transcriptText}
 `;
 
-    const result = await model.generateContent(
-      prompt
-    );
+    const result =
+      await model.generateContent(prompt);
 
     const text = result.response.text();
 
+    console.log("Gemini Response:", text);
+
     return Response.json({
+      success: true,
       result: text,
     });
   } catch (error: any) {
-    console.error(error);
+    console.error("FULL ERROR:", error);
 
     return Response.json({
-      error: error.message,
+      success: false,
+      error:
+        error?.message ||
+        "Something went wrong",
     });
   }
 }
